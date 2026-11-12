@@ -1,0 +1,7 @@
+temp_repo/
+__pycache__/
+*.pyc
+.env
+node_modules/
+.expo/
+dist/

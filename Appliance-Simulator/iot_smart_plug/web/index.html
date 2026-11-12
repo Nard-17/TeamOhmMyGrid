@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KuryenPlug Pro - IoT Smart Plug Hardware Emulator</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="workbench-container">
+    
+    <!-- TOP STATUS BAR -->
+    <header class="top-bar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <span class="logo-bolt">⚡</span>
+          <div>
+            <h1>KuryenPlug <span class="badge-hw">Simulator</span></h1>
+            <p class="sub-text">Explore how your appliances use electricity.</p>
+          </div>
+        </div>
+      </div>
+
+<span id="connection-status" class="connection-pill" role="status">Connecting...</span>
+    </header>
+
+    <!-- SAFETY ALERTS (OCP / BROWNOUT) -->
+    <div id="safety-alert" class="safety-banner alert-hidden" role="alert">
+      <span class="alert-icon">⚠️</span>
+      <span id="safety-alert-text">SAFETY LOCKOUT: OVERCURRENT BREAKER TRIPPED!</span>
+      <button class="btn-reset" onclick="resetBreaker()">Reset safety switch</button>
+    </div>
+
+    <section class="intro"><p class="eyebrow">YOUR VIRTUAL SMART PLUG</p><h2>A little more clarity.<br>A little less guesswork.</h2><p>Choose appliances, customize each one, and compare their electricity use. All readings here are simulated.</p></section>
+    <aside class="quick-guide" aria-labelledby="quick-guide-title">
+      <div>
+        <h2 id="quick-guide-title">New here? Start with these three steps.</h2>
+        <ol>
+          <li><strong>Choose appliances</strong> by clicking their cards. Click again to remove one.</li>
+          <li><strong>Set quantities with + and -</strong> in the selected list, then customize each type. Use its own power switch or the master switch below.</li>
+          <li><strong>Watch the readings.</strong> Each appliance shows its watts; the overview adds them all together.</li>
+        </ol>
+      </div>
+      <div class="quick-guide-meanings">
+        <h3>What do the numbers mean?</h3>
+        <p><strong>W (watts)</strong> is power used right now. A higher number means more electricity is being used at that moment.</p>
+        <p><strong>kWh (kilowatt-hours)</strong> is energy added up over time. For example, 1,000 W used for one hour equals 1 kWh.</p>
+        <p class="quick-guide-note">These are simulated readings. The total includes a preset starting value, so it does not begin at zero. The optional sections below are for exploring problems and technical details.</p>
+      </div>
+    </aside>
+    <div id="action-feedback" role="status" class="action-feedback" hidden></div>
+    <!-- MAIN GRID -->
+    <div class="main-grid">
+      
+      <!-- LEFT COLUMN: PHYSICAL SMART PLUG & CONTROLS -->
+      <div class="column-left">
+        
+        <!-- PHYSICAL HARDWARE PLUG TWIN -->
+        <div class="card hardware-twin-card">
+          <div class="card-header">
+            <h2>Master power</h2>
+            <span class="model-id">2 &middot; Switch the power</span>
+          </div>
+
+          <div class="hardware-visual-container">
+            <!-- 3D Styled Smart Plug -->
+            <div class="plug-chassis">
+              <div class="plug-faceplate">
+                <!-- Grounded Universal Outlet -->
+                <div class="socket-assembly">
+                  <div class="pin-slot slot-left"></div>
+                  <div class="pin-slot slot-right"></div>
+                  <div class="pin-ground"></div>
+                </div>
+
+                <!-- Relay Status LED & Touch Button -->
+                <div class="plug-controls">
+                  <button aria-describedby="master-power-help" id="hw-power-button" class="power-button power-on" onclick="toggleRelay()">
+                    <span class="power-icon">⏻</span>
+                    <span id="power-button-text">Turn off</span>
+                  </button>
+                </div>
+
+                <!-- Hardware Status LEDs -->
+                <div class="led-strip">
+                  <div class="led-item">
+                    <span class="led-dot led-green" id="led-pwr"></span>
+                    <span class="led-label">PWR</span>
+                  </div>
+                  <div class="led-item">
+                    <span class="led-dot led-blue" id="led-wifi"></span>
+                    <span class="led-label">WIFI</span>
+                  </div>
+                  <div class="led-item">
+                    <span class="led-dot led-off" id="led-err"></span>
+                    <span class="led-label">OCP/ERR</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Plugged Appliance Meta -->
+            <div class="appliance-meta-panel">
+              <div class="meta-row">
+                <span class="meta-label">Connected appliance</span>
+                <span class="meta-val" id="val-connected-load">Air Conditioner (1.5 HP Inverter)</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Appliance type</span>
+                <span class="meta-val" id="val-load-cat">HVAC / Modulation</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Total meter reading</span>
+                <span class="meta-val highlight-green" id="val-total-kwh">115.4200 kWh</span>
+              </div>
+            </div>
+          </div>
+          <p id="master-power-help" class="section-help" style="margin-top: 18px; margin-bottom: 0;" role="status">The master switch controls all selected appliances.</p>
+        </div>
+
+        <!-- APPLIANCE BAY (CHOOSE APPLIANCE TO PLUG IN) -->
+        <div class="card">
+          <div class="card-header">
+            <h2>1 &middot; Choose appliances</h2>
+            <span class="card-note">Select multiple cards; click again to remove</span>
+          </div>
+
+          <div class="appliance-selector-grid">
+            <button class="app-btn active" data-app="air_conditioner" onclick="selectAppliance('air_conditioner')">
+              <span class="app-icon">❄️</span>
+              <span class="app-title">Air Conditioner</span>
+              <span class="app-watts">~850W</span>
+            </button>
+            <button class="app-btn" data-app="refrigerator" onclick="selectAppliance('refrigerator')">
+              <span class="app-icon">🧊</span>
+              <span class="app-title">Refrigerator</span>
+              <span class="app-watts">~150W</span>
+            </button>
+            <button class="app-btn" data-app="fan" onclick="selectAppliance('fan')">
+              <span class="app-icon">🌀</span>
+              <span class="app-title">Electric Stand Fan</span>
+              <span class="app-watts">~60W</span>
+            </button>
+            <button class="app-btn" data-app="washing_machine" onclick="selectAppliance('washing_machine')">
+              <span class="app-icon">🧺</span>
+              <span class="app-title">Washing Machine</span>
+              <span class="app-watts">~520W</span>
+            </button>
+            <button class="app-btn" data-app="rice_cooker" onclick="selectAppliance('rice_cooker')">
+              <span class="app-icon">🍚</span>
+              <span class="app-title">Rice Cooker</span>
+              <span class="app-watts">~700W</span>
+            </button>
+            <button class="app-btn" data-app="microwave" onclick="selectAppliance('microwave')">
+              <span class="app-icon">📡</span>
+              <span class="app-title">Microwave Oven</span>
+              <span class="app-watts">~1250W</span>
+            </button>
+            <button class="app-btn" data-app="gaming_pc" onclick="selectAppliance('gaming_pc')">
+              <span class="app-icon">💻</span>
+              <span class="app-title">Gaming PC & Monitor</span>
+              <span class="app-watts">~320W</span>
+            </button>
+            <button class="app-btn" data-app="vacuum" onclick="selectAppliance('vacuum')">
+              <span class="app-icon">🧹</span>
+              <span class="app-title">Vacuum Cleaner</span>
+              <span class="app-watts">~1400W</span>
+            </button>
+          </div>
+
+<p class="section-help">Continuous monitoring keeps readings flowing, even with many appliances. Automatic safety cutoffs are off by default; enable them below only when testing faults. Load size scales each model for comparison; it is not a real appliance control.</p><div id="selected-appliances" class="selected-appliances"><p>Connecting to your selected appliances...</p></div>
+        </div>
+
+      </div>
+<section class="column-right overview card"><p class="eyebrow">LIVE OVERVIEW</p><h2>Combined electricity use</h2><p class="section-help">See what happens when you change appliances or turn the power off.</p><div class="usage-primary"><span>Total power right now</span><div><strong id="simple-power">--</strong> <span>W</span></div><p>Watts show how much electricity all enabled appliances are using at this moment.</p></div><div class="usage-energy"><span>Total meter reading</span><strong id="simple-energy">? kWh</strong><p>Energy added up over time. Includes the simulator's starting reading.</p></div><p id="scenario-overview" class="scenario-description"></p><div class="plain-status" id="simple-status" role="status">Waiting for the simulator...</div><p class="try-tip"><strong>Try it:</strong> Compare a fan with an air conditioner, then switch the power off and watch the watts drop.</p></section>
+    </div>
+  </div>
+
+<section class="extras workbench-container"><details class="disclosure"><summary><span>Explore simulation scenarios<small>Optional &middot; Peak hours, household conditions, and faults</small></span><span class="disclosure-plus" aria-hidden="true">+</span></summary><p class="section-help">Selected options have a checkmark and green border. To return to normal, choose Normal day, Clear Defects, and Normal (230V).</p>        <!-- FAULT & DISTURBANCE INJECTION -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Simulation scenarios</h2>
+            <span class="card-note">For exploration</span>
+          </div>
+
+          <div class="scenario-presets"><h3>What would you like to simulate?</h3><div class="button-row" role="group" aria-label="Simulation scenario">
+<button class="btn-fault" data-scenario="normal" aria-pressed="false" onclick="setScenario('normal')">Normal day</button>
+<button class="btn-fault" data-scenario="peak_hours" aria-pressed="false" onclick="setScenario('peak_hours')">Peak hours</button>
+<button class="btn-fault" data-scenario="hot_day" aria-pressed="false" onclick="setScenario('hot_day')">Hot day</button>
+<button class="btn-fault" data-scenario="energy_saving" aria-pressed="false" onclick="setScenario('energy_saving')">Energy-saving example</button></div><p id="scenario-description" class="scenario-description" role="status"></p><p class="section-help">Choose one preset. Supply and fault settings below can be combined with it. These are manual demo scenarios, not live utility signals or tariff schedules.</p></div><p id="fault-selection-status" class="section-help" role="status"></p><div class="fault-controls"><label class="section-help" style="display:block"><input type="checkbox" id="safety-testing" onchange="setSafetyTesting(this.checked)"> Enable automatic safety cutoffs (15 A / 85 C)</label><p class="section-help">Optional simulation test: excessive current or temperature will stop all loads. Turn this off to clear a safety stop and resume monitoring. Continuous monitoring is a software demo mode, not a safe operating limit for physical hardware.</p>
+            <div class="control-group">
+              <label>Appliance problems</label>
+              <div class="button-row">
+                <button class="btn-fault" data-fault="compressor_leak" aria-pressed="false" onclick="injectFault('compressor_leak')">Refrigerant Leak</button>
+                <button class="btn-fault btn-danger" data-fault="locked_rotor" aria-pressed="false" onclick="injectFault('locked_rotor')">Locked Rotor (Surge)</button>
+                <button class="btn-fault" data-fault="bearing_wear" aria-pressed="false" onclick="injectFault('bearing_wear')">Bearing Friction</button>
+                <button class="btn-fault btn-clear" data-fault="normal" aria-pressed="false" onclick="injectFault(null)">Clear Defects</button>
+              </div>
+            </div>
+
+            <div class="control-group" style="margin-top: 14px;">
+              <label>Electricity supply</label>
+              <div class="button-row">
+                <button class="btn-fault btn-warning" data-grid="brownout" aria-pressed="false" onclick="injectGrid('brownout')">Brownout (188V Sag)</button>
+                <button class="btn-fault btn-warning" data-grid="surge" aria-pressed="false" onclick="injectGrid('surge')">Surge (265V)</button>
+                <button class="btn-fault btn-clear" data-grid="normal" aria-pressed="false" onclick="injectGrid(null)">Normal (230V)</button>
+              </div>
+            </div>
+          </div>
+        </div></details><details class="disclosure" id="technical-details"><summary><span>Technical details<small>Optional &middot; Electrical measurements, waveforms, and data</small></span><span class="disclosure-plus" aria-hidden="true">+</span></summary>      <div class="telemetry-chips">
+        <div class="chip">
+          <span class="chip-label">MAINS GRID</span>
+          <span class="chip-val" id="chip-grid">230V / 60Hz</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">RELAY</span>
+          <span class="chip-val status-green" id="chip-relay">CLOSED (ON)</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">PCB SHUNT TEMP</span>
+          <span class="chip-val" id="chip-temp">31.2°C</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">BROWSER CONNECTION</span>
+          <span class="chip-val status-cyan" id="chip-mqtt">ACTIVE (1 Hz)</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">WIFI RSSI</span>
+          <span class="chip-val" id="chip-wifi">-58 dBm</span>
+        </div>
+      </div>
+      <!-- RIGHT COLUMN: OSCILLOSCOPE & PRECISION METERING -->
+      <div class="technical-content">
+        
+        <!-- AC OSCILLOSCOPE (CANVAS 60FPS) -->
+        <div class="card oscilloscope-card">
+          <div class="card-header">
+            <div>
+              <h2>Electrical waveforms</h2>
+              <span class="card-note">2-Cycle Time-Domain Voltage v(t) & Current i(t) Waveforms</span>
+            </div>
+            <div class="scope-legend">
+              <span class="legend-item"><span class="legend-dot dot-yellow"></span> Voltage v(t)</span>
+              <span class="legend-item"><span class="legend-dot dot-cyan"></span> Current i(t)</span>
+            </div>
+          </div>
+
+          <!-- HTML5 Canvas Waveform Display -->
+          <div class="canvas-wrapper">
+            <canvas id="scopeCanvas" width="700" height="260"></canvas>
+            <div class="canvas-watermark">60 Hz &bull; 230V RMS MAINS</div>
+          </div>
+
+          <div class="scope-footer">
+            <div class="scope-stat">
+              <span class="stat-lbl">Phase Shift (&phi;)</span>
+              <span class="stat-num" id="scope-phi">19.9° (Lagging)</span>
+            </div>
+            <div class="scope-stat">
+              <span class="stat-lbl">Time Div</span>
+              <span class="stat-num">5.0 ms / div</span>
+            </div>
+            <div class="scope-stat">
+              <span class="stat-lbl">Voltage Peak</span>
+              <span class="stat-num" id="scope-vpeak">&plusmn;325.2 V</span>
+            </div>
+            <div class="scope-stat">
+              <span class="stat-lbl">Current Peak</span>
+              <span class="stat-num" id="scope-ipeak">&plusmn;4.91 A</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRECISION DIGITAL METER CLUSTER -->
+        <div class="meter-cluster-grid">
+          
+          <div class="meter-card meter-highlight">
+            <div class="meter-label">ACTIVE POWER (P)</div>
+            <div class="meter-value"><span id="m-active-p">0.0</span> <span class="meter-unit">W</span></div>
+            <div class="meter-bar-track">
+              <div id="bar-p" class="meter-bar-fill" style="width: 25%;"></div>
+            </div>
+            <div class="meter-footer">Real Work Performed</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">RMS VOLTAGE (V)</div>
+            <div class="meter-value"><span id="m-v-rms">230.0</span> <span class="meter-unit">V</span></div>
+            <div class="meter-bar-track">
+              <div id="bar-v" class="meter-bar-fill fill-blue" style="width: 85%;"></div>
+            </div>
+            <div class="meter-footer">Grid Line-to-Neutral</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">RMS CURRENT (I)</div>
+            <div class="meter-value"><span id="m-i-rms">0.000</span> <span class="meter-unit">A</span></div>
+            <div class="meter-bar-track">
+              <div id="bar-i" class="meter-bar-fill fill-pink" style="width: 15%;"></div>
+            </div>
+            <div class="meter-footer">Trip Limit: 15.00 A</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">POWER FACTOR (PF)</div>
+            <div class="meter-value"><span id="m-pf">0.950</span></div>
+            <div class="meter-bar-track">
+              <div id="bar-pf" class="meter-bar-fill fill-green" style="width: 95%;"></div>
+            </div>
+            <div class="meter-footer" id="m-pf-type">Inductive (cos &phi;)</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">REACTIVE POWER (Q)</div>
+            <div class="meter-value"><span id="m-reactive-q">0.0</span> <span class="meter-unit">VAR</span></div>
+            <div class="meter-footer">Magnetic Field Energy</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">APPARENT POWER (S)</div>
+            <div class="meter-value"><span id="m-apparent-s">0.0</span> <span class="meter-unit">VA</span></div>
+            <div class="meter-footer">Total Volt-Amperes</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">GRID FREQUENCY</div>
+            <div class="meter-value"><span id="m-freq">60.00</span> <span class="meter-unit">Hz</span></div>
+            <div class="meter-footer">Target: 60.0 Hz &plusmn;0.2</div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-label">HARMONIC THD</div>
+            <div class="meter-value"><span id="m-thd">3.5</span> <span class="meter-unit">%</span></div>
+            <div class="meter-footer">Current Distortion</div>
+          </div>
+
+        </div>
+
+        <!-- REAL-TIME PROTOCOL / MQTT INSPECTOR -->
+        <div class="card mqtt-card">
+          <div class="card-header">
+            <h2>Live data preview</h2>
+            <span class="card-note">Topic format: <code>meralco/smartplug/meralco_plug_01/state</code></span>
+          </div>
+
+          <div class="mqtt-console-wrapper">
+            <div class="mqtt-packet-header">
+              <span>TOPIC / PAYLOAD</span>
+              <span>TIME / QOS</span>
+            </div>
+            <div id="mqtt-log-list" class="mqtt-log-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+</details><p class="page-footnote">KuryenPlug &middot; Ohm My Grid &middot; Smart plug simulation</p></section>
+  <script src="/static/app.js"></script>
+</body>
+</html>
